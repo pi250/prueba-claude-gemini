@@ -1,191 +1,81 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <meta name="description" content="Conversor de temperaturas entre Celsius y Fahrenheit.">
-  <title>Conversor de temperaturas</title>
-  <style>
-    :root {
-      --fondo: #f3f5f9; --tarjeta: #ffffff; --texto: #1c2430; --suave: #5b6676;
-      --borde: #cdd5e1; --acento: #2563eb; --ok-fondo: #e8f1ff;
-      --error: #b42318; --error-fondo: #fdecea;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --fondo: #10151d; --tarjeta: #1a2230; --texto: #e8edf5; --suave: #a1acbd;
-        --borde: #34415a; --acento: #6ea0ff; --ok-fondo: #1f2d4a;
-        --error: #ff9b91; --error-fondo: #3a1e1c;
-      }
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; min-height: 100vh; min-height: 100dvh;
-      display: flex; align-items: center; justify-content: center; padding: 16px;
-      background: var(--fondo); color: var(--texto);
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.4;
-    }
-    main {
-      width: 100%; max-width: 440px; background: var(--tarjeta);
-      border: 1px solid var(--borde); border-radius: 16px; padding: 24px 20px;
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
-    }
-    h1 { margin: 0 0 4px; font-size: 1.5rem; }
-    .subtitulo { margin: 0 0 20px; color: var(--suave); font-size: 0.95rem; }
-    label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; }
-    input, select, button { font: inherit; font-size: 1rem; color: var(--texto); }
-    input, select {
-      width: 100%; padding: 12px; border: 1px solid var(--borde);
-      border-radius: 10px; background: var(--fondo);
-    }
-    input:focus, select:focus, button:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
-    .campo { margin-bottom: 16px; }
-    .escalas { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; margin-bottom: 16px; }
-    .intercambiar {
-      padding: 12px 14px; border: 1px solid var(--borde); border-radius: 10px;
-      background: var(--fondo); cursor: pointer;
-    }
-    .intercambiar:hover { border-color: var(--acento); }
-    .resultado {
-      margin-top: 8px; padding: 16px; border-radius: 12px; min-height: 56px;
-      background: var(--ok-fondo); font-size: 1.25rem; font-weight: 600; word-break: break-all;
-    }
-    .resultado.error { background: var(--error-fondo); color: var(--error); font-size: 1rem; }
-    footer { margin-top: 16px; font-size: 0.8rem; color: var(--suave); }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat con Claude</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, sans-serif; background: #f4f4f7; height: 100vh; display: flex; flex-direction: column; }
+  header { background: #4b3fd1; color: #fff; padding: 14px 20px; font-size: 18px; font-weight: 600; }
+  #chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 75%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word; line-height: 1.4; }
+  .user { align-self: flex-end; background: #4b3fd1; color: #fff; border-bottom-right-radius: 4px; }
+  .bot { align-self: flex-start; background: #fff; color: #222; border-bottom-left-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+  .error { background: #fde8e8; color: #a11; }
+  form { display: flex; gap: 8px; padding: 12px; background: #fff; border-top: 1px solid #ddd; }
+  textarea { flex: 1; resize: none; padding: 10px; border: 1px solid #ccc; border-radius: 10px; font: inherit; height: 48px; }
+  button { background: #4b3fd1; color: #fff; border: none; border-radius: 10px; padding: 0 20px; font-size: 15px; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+</style>
 </head>
 <body>
-  <main>
-    <h1>Conversor de temperaturas</h1>
-    <p class="subtitulo">Celsius ↔ Fahrenheit</p>
+<header>Chat con Claude</header>
+<div id="chat"><div class="msg bot">Hola, soy tu agente desarrollador. ¿Qué quieres que construya?</div></div>
+<form id="form">
+  <textarea id="input" placeholder="Escribe un mensaje... (Enter para enviar, Shift+Enter nueva línea)"></textarea>
+  <button id="send" type="submit">Enviar</button>
+</form>
+<script>
+  const WEBHOOK_URL = 'https://marcosbot.app.n8n.cloud/webhook/chat-claude';
+  let sessionId = localStorage.getItem('chatSessionId');
+  if (!sessionId) {
+    sessionId = 'web-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem('chatSessionId', sessionId);
+  }
+  const chat = document.getElementById('chat');
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const send = document.getElementById('send');
 
-    <div class="campo">
-      <label for="valor">Temperatura</label>
-      <input id="valor" type="text" inputmode="decimal" autocomplete="off" placeholder="Ej.: 36,6" value="100">
-    </div>
+  function addMsg(text, cls) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + cls;
+    div.textContent = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
 
-    <div class="escalas">
-      <div>
-        <label for="origen">De</label>
-        <select id="origen">
-          <option value="C" selected>Celsius (°C)</option>
-          <option value="F">Fahrenheit (°F)</option>
-        </select>
-      </div>
-      <button type="button" class="intercambiar" id="intercambiar" aria-label="Intercambiar escalas">⇄</button>
-      <div>
-        <label for="destino">A</label>
-        <select id="destino">
-          <option value="C">Celsius (°C)</option>
-          <option value="F" selected>Fahrenheit (°F)</option>
-        </select>
-      </div>
-    </div>
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+  });
 
-    <div class="campo">
-      <label for="decimales">Decimales</label>
-      <select id="decimales">
-        <option>0</option><option>1</option><option selected>2</option>
-        <option>3</option><option>4</option><option>5</option><option>6</option>
-      </select>
-    </div>
-
-    <div id="resultado" class="resultado" role="status" aria-live="polite"></div>
-    <footer>Cero absoluto: -273,15 °C / -459,67 °F</footer>
-  </main>
-
-  <script>
-    var CERO_ABSOLUTO = { C: -273.15, F: -459.67 };
-
-    // Acepta coma o punto decimal; rechaza vacíos y texto no numérico.
-    function parsearValor(texto) {
-      var limpio = String(texto).trim().replace(",", ".");
-      if (limpio === "" || !/^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(limpio)) {
-        throw new Error("Introduce un número válido.");
-      }
-      var numero = Number(limpio);
-      if (!Number.isFinite(numero)) {
-        throw new Error("El número es demasiado grande.");
-      }
-      return numero;
-    }
-
-    function convertir(valor, origen, destino) {
-      origen = String(origen).toUpperCase();
-      destino = String(destino).toUpperCase();
-      if (!(origen in CERO_ABSOLUTO) || !(destino in CERO_ABSOLUTO)) {
-        throw new Error("Las escalas válidas son C y F.");
-      }
-      if (!Number.isFinite(valor)) {
-        throw new Error("El valor debe ser un número finito.");
-      }
-      if (valor < CERO_ABSOLUTO[origen]) {
-        throw new Error("La temperatura no puede estar por debajo del cero absoluto.");
-      }
-      if (origen === destino) return valor;
-      var resultado = origen === "C" ? valor * 9 / 5 + 32 : (valor - 32) * 5 / 9;
-      if (!Number.isFinite(resultado)) {
-        throw new Error("El resultado es demasiado grande.");
-      }
-      return resultado;
-    }
-
-    // N decimales con coma decimal; evita "-0" y la notación exponencial.
-    function formatear(numero, decimales) {
-      if (!Number.isInteger(decimales) || decimales < 0 || decimales > 100) {
-        throw new Error("El número de decimales debe ser un entero entre 0 y 100.");
-      }
-      var texto;
-      if (Math.abs(numero) >= 1e21 && typeof BigInt === "function") {
-        texto = BigInt(numero).toString();
-        if (decimales > 0) texto += "." + "0".repeat(decimales);
-      } else {
-        texto = numero.toFixed(decimales);
-      }
-      if (/^-0(\.0*)?$/.test(texto)) texto = texto.slice(1);
-      return texto.replace(".", ",");
-    }
-
-    function describirConversion(texto, origen, destino, decimales) {
-      var valor = parsearValor(texto);
-      var orig = String(origen).toUpperCase();
-      var dest = String(destino).toUpperCase();
-      var resultado = convertir(valor, orig, dest);
-      var entrada = String(valor === 0 ? 0 : valor).replace(".", ",");
-      return entrada + " °" + orig + " = " + formatear(resultado, decimales) + " °" + dest;
-    }
-
-    if (typeof module !== "undefined") {
-      module.exports = { parsearValor: parsearValor, convertir: convertir, formatear: formatear, describirConversion: describirConversion };
-    }
-
-    if (typeof document !== "undefined") {
-      var $ = function (id) { return document.getElementById(id); };
-      var actualizar = function () {
-        var salida = $("resultado");
-        try {
-          salida.textContent = describirConversion(
-            $("valor").value, $("origen").value, $("destino").value, parseInt($("decimales").value, 10)
-          );
-          salida.classList.remove("error");
-        } catch (e) {
-          salida.textContent = e.message;
-          salida.classList.add("error");
-        }
-      };
-      ["valor", "origen", "destino", "decimales"].forEach(function (id) {
-        $(id).addEventListener("input", actualizar);
-        $(id).addEventListener("change", actualizar);
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    addMsg(text, 'user');
+    input.value = '';
+    send.disabled = true;
+    const thinking = addMsg('Pensando...', 'bot');
+    try {
+      const res = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, sessionId })
       });
-      $("intercambiar").addEventListener("click", function () {
-        var o = $("origen").value;
-        $("origen").value = $("destino").value;
-        $("destino").value = o;
-        actualizar();
-      });
-      actualizar();
+      if (!res.ok) throw new Error('Error ' + res.status);
+      const data = await res.json();
+      thinking.textContent = data.reply || '(sin respuesta)';
+    } catch (err) {
+      thinking.textContent = 'No se pudo contactar con el agente: ' + err.message;
+      thinking.classList.add('error');
+    } finally {
+      send.disabled = false;
+      input.focus();
     }
-  </script>
+  });
+</script>
 </body>
 </html>
